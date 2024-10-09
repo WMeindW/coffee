@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evidenční aplikace vypité kávy</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        label, input {
+            display: block;
+            margin: 5px 0;
+        }
+
+        input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        input[type="range"] {
+            width: 200px;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 15px;
+        }
+
+        .slider-value {
+            display: inline-block;
+            width: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1>Evidenční aplikace vypité kávy</h1>
+
+<form id="coffeeForm" action="http://localhost:3000/saveDrinks" method="post">
+    <label>Vyberte uživatele:</label>
+    <div id="usersList"></div>
+
+    <div id="coffeeTypes"></div>
+
+    <button type="submit" >Odeslat</button>
+</form>
+<div id="coffeeData"></div>
+
+<label>Choose a month:
+    <input id="monthInput" onchange="loadMonthlyStats(this.value)" value="2024-09" type="month">
+</label>
+<div id="monthlyStats">
+</div>
+<script>
+    const API_URL = 'http://localhost:3000/';
+    const USERNAME = 'coffe';
+    const PASSWORD = 'kafe';
+
+    const credentials = btoa(`${USERNAME}:${PASSWORD}`);
+
+    document.addEventListener("DOMContentLoaded", function () {
+        loadUsers();
+        loadCoffeeTypes();
+        loadStats();
+        //loadMonthlyStats(document.getElementById("monthInput").value);
+    });
+
+    function loadUsers() {
+        let headers = new Headers();
+        headers.set('Authorization', 'Basic ' + btoa(USERNAME + ":" + PASSWORD));
+        fetch(`${API_URL}getPeopleList`, {
+            method: 'GET',
+            headers: headers
+        })
+            .then(response => response.json())
+            .then(data => {
+                const usersList = document.getElementById('usersList');
+                usersList.innerHTML = '';
+                let i = 0
+                Object.values(data).forEach(user => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `<input type="radio" name="user" value="${i}" required> ${user.name}`;
+                    i++;
+                    usersList.appendChild(label);
+                    usersList.appendChild(document.createElement('br'));
+                });
+            })
+            .catch(error => {
+                console.error('Chyba při načítání uživatelů:', error);
+            });
+    }
+
+    function loadCoffeeTypes() {
+        fetch(`${API_URL}getTypesList`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${credentials}`
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                const coffeeTypesDiv = document.getElementById('coffeeTypes');
+                coffeeTypesDiv.innerHTML = '';
+
+                Object.values(data).forEach(coffee => {
+                    const label = document.createElement('label');
+                    label.innerHTML = `${coffee.typ}:`;
+                    const slider = document.createElement('input');
+                    slider.type = 'range';
+                    slider.name = "type[]";
+                    slider.min = "0";
+                    slider.max = "10";
+                    slider.value = "0";
+                    slider.oninput = function () {
+                        document.getElementById(`${coffee.typ}Value`).textContent = slider.value;
+                    };
+
+                    const valueSpan = document.createElement('span');
+                    valueSpan.classList.add('slider-value');
+                    valueSpan.id = `${coffee.typ}Value`;
+                    valueSpan.textContent = '0';
+
+                    coffeeTypesDiv.appendChild(label);
+                    coffeeTypesDiv.appendChild(slider);
+                    coffeeTypesDiv.appendChild(valueSpan);
+                    coffeeTypesDiv.appendChild(document.createElement('br'));
+                });
+            })
+            .catch(error => {
+                console.error('Chyba při načítání typů kávy:', error);
+            });
+    }
+
+    function loadStats() {
+        fetch(`${API_URL}getSummaryOfDrinks`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${credentials}`
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                const coffeeDataDiv = document.getElementById('coffeeData');
+                coffeeDataDiv.innerHTML = '';
+
+                Object.values(data).forEach(stat => {
+                    const label = document.createElement('label');
+                    label.textContent = `Typ: ${stat[0]} Jméno: ${stat[2]} Počet: ${stat[1]}`
+                    coffeeDataDiv.append(label);
+                });
+            })
+            .catch(error => {
+                console.error('Chyba při načítání typů kávy:', error);
+            });
+    }
+
+    /*  function loadMonthlyStats(month) {
+          fetch(`${API_URL}getSummaryOfDrinks&month=${month.split("-")[1]}`, {
+              method: 'GET',
+              headers: {
+                  'Authorization': `Basic ${credentials}`
+              }
+          })
+              .then(response => response.json())
+              .then(data => {
+                  const monthlyStats = document.getElementById('monthlyStats');
+                  monthlyStats.innerHTML = '';
+                  Object.values(data).forEach(stat => {
+                      const label = document.createElement('label');
+                      label.textContent = `Typ: ${stat[0]} Jméno: ${stat[2]} Počet: ${stat[1]}`
+                      monthlyStats.append(label);
+                      console.log(stat)
+                  });
+              })
+              .catch(error => {
+                  console.error('Chyba při načítání typů kávy:', error);
+              });
+      }
+
+     */
+
+    function submitForm() {
+        const form = document.getElementById('coffeeForm');
+        const formData = new FormData(form);
+
+        fetch(`${API_URL}saveDrinks`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(() => {
+                alert('Data úspěšně odeslána.');
+            })
+            .catch(error => {
+                console.error('Chyba při odesílání:', error);
+            });
+    }
+</script>
+
+</body>
+</html>
